@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Philosophy RAG 助手</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background-color: #f5f5f7;
+      color: #1f2933;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      padding: 12px 24px;
+      background: linear-gradient(90deg, #111827, #1f2937);
+      color: #f9fafb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .header-subtitle {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .layout {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .main {
+      flex: 2.2;
+      padding: 16px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      box-sizing: border-box;
+    }
+
+    .sidebar {
+      flex: 1;
+      border-left: 1px solid #e5e7eb;
+      background-color: #ffffff;
+      padding: 16px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+    }
+
+    .debugbar {
+      flex: 1;
+      border-left: 1px solid #e5e7eb;
+      background-color: #ffffff;
+      padding: 16px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+    }
+
+    .input-card, .answer-card, .excerpt-detail-card {
+      background-color: #ffffff;
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+      border: 1px solid #e5e7eb;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #111827;
+    }
+
+    .question-input {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      padding: 8px 10px;
+      font-size: 14px;
+      resize: vertical;
+      min-height: 60px;
+      max-height: 160px;
+      outline: none;
+    }
+
+    .question-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px #2563eb20;
+    }
+
+    .actions {
+      margin-top: 8px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border-radius: 999px;
+      border: none;
+      padding: 6px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+    }
+
+    .btn.secondary {
+      background: #ffffff;
+      color: #111827;
+      border: 1px solid #d1d5db;
+    }
+
+    .btn.secondary:hover:not(:disabled) {
+      background: #f9fafb;
+    }
+
+    .btn:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: #1d4ed8;
+      box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
+      transform: translateY(-0.5px);
+    }
+
+    .answer-content {
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .placeholder {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    .sidebar-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #111827;
+    }
+
+    .sidebar-subtitle {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+
+    .excerpt-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .excerpt-item {
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+      font-size: 12px;
+      background-color: #f9fafb;
+    }
+
+    .excerpt-item:hover {
+      background-color: #eff6ff;
+      border-color: #3b82f6;
+    }
+
+    .excerpt-item.active {
+      background-color: #dbeafe;
+      border-color: #2563eb;
+    }
+
+    .excerpt-meta {
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #111827;
+    }
+
+    .excerpt-text {
+      max-height: 4.2em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .excerpt-detail-text {
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .footer {
+      padding: 4px 16px;
+      font-size: 11px;
+      color: #9ca3af;
+      text-align: right;
+      border-top: 1px solid #e5e7eb;
+      background-color: #f9fafb;
+    }
+
+    .status-text {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .dropzone {
+      margin-top: 10px;
+      border: 2px dashed #cbd5e1;
+      border-radius: 10px;
+      padding: 18px 14px;
+      text-align: center;
+      font-size: 13px;
+      color: #64748b;
+      background: #f8fafc;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .dropzone:hover:not(.disabled) {
+      border-color: #94a3b8;
+      background: #f1f5f9;
+    }
+
+    .dropzone.dragover {
+      border-color: #2563eb;
+      background: #eff6ff;
+      color: #1e40af;
+    }
+
+    .dropzone.disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .dropzone code {
+      font-size: 12px;
+    }
+
+    .ingest-progress-wrap {
+      margin-top: 10px;
+      display: none;
+    }
+
+    .ingest-progress-wrap.visible {
+      display: block;
+    }
+
+    .ingest-progress-wrap progress {
+      width: 100%;
+      height: 10px;
+      border-radius: 6px;
+      overflow: hidden;
+      accent-color: #2563eb;
+    }
+
+    .ingest-progress-label {
+      font-size: 12px;
+      color: #475569;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    .upload-hint {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 6px;
+    }
+
+    .keyword-input {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      padding: 8px 10px;
+      font-size: 13px;
+      resize: vertical;
+      min-height: 44px;
+      max-height: 100px;
+      outline: none;
+    }
+
+    .keyword-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px #2563eb20;
+    }
+
+    .option-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 20px;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 13px;
+      color: #374151;
+    }
+
+    .option-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .retrieval-hint {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    .debug-pre {
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 8px;
+      color: #374151;
+    }
+
+    .debugbar.hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="header-title">Philosophy RAG 助手</div>
+      <div class="header-subtitle">本地 RAG + 引用文献片段侧边栏 + 一键 Ingest</div>
+    </div>
+    <div style="font-size: 11px; opacity: 0.7;">
+      后端: FastAPI · LLM: Gemini
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="main">
+      <div class="input-card">
+        <div class="card-title">步骤 1：构建向量库（ingest）</div>
+        <div style="font-size: 13px; color: #6b7280; margin-bottom: 6px;">
+          点击下方按钮会通过流式接口运行 ingest：加载 <code>data</code> 目录（含下方拖入的文件）下的文档，切分为语义片段，编码并写入 Chroma，并构建 SQLite FTS5 稀疏索引 <code>data/sparse_fts.db</code>。下方进度条与后端阶段同步。
+        </div>
+        <div
+          id="uploadDropzone"
+          class="dropzone"
+          tabindex="0"
+          role="button"
+          aria-label="拖入 PDF 或点击选择文件"
+        >
+          <strong>拖入 PDF / DOCX / JSON</strong> 到此处，或点击选择文件<br />
+          <span class="upload-hint">文件会保存到 <code>data/uploads/</code>，与现有 <code>data</code> 文档一并被索引。</span>
+        </div>
+        <input type="file" id="uploadFileInput" multiple accept=".pdf,.docx,.json,application/pdf" style="display:none;" />
+        <label class="option-row" style="margin-top:10px;">
+          <input type="checkbox" id="autoIngestAfterUpload" checked />
+          上传成功后自动运行 Ingest
+        </label>
+        <div id="ingestProgressWrap" class="ingest-progress-wrap">
+          <progress id="ingestProgress" max="100" value="0"></progress>
+          <div id="ingestProgressLabel" class="ingest-progress-label"></div>
+        </div>
+        <div class="actions">
+          <label for="profileSelect" class="status-text">检索配置：</label>
+          <select id="profileSelect" class="btn secondary" style="border-radius:8px; padding:6px 10px;">
+            <option value="quality">quality</option>
+            <option value="fast">fast</option>
+          </select>
+          <button id="ingestButton" class="btn secondary">运行 Ingest</button>
+          <span id="ingestStatus" class="status-text"></span>
+        </div>
+      </div>
+
+      <div class="input-card">
+        <div class="card-title">步骤 2：提出你的哲学问题</div>
+        <textarea id="questionInput" class="question-input" placeholder="例如：康德如何区分现象界与物自身？"></textarea>
+        <div class="card-title" style="margin-top:10px; font-size:13px;">关键词（可选）</div>
+        <textarea id="keywordInput" class="keyword-input" placeholder="手动输入术语，用逗号或换行分隔，例如：noumenon, transcendental idealism&#10;留空时可勾选下方「自动抽取」由模型从问题中抽取检索词。"></textarea>
+        <div class="card-title" style="margin-top:10px; font-size:13px;">限定文件名（可选）</div>
+        <textarea id="sourceFilterInput" class="keyword-input" placeholder="仅在这些文件中检索并作答。用逗号或换行分隔，例如：Kant_CPR.pdf, Hegel_Phenomenology.pdf"></textarea>
+        <div class="card-title" style="margin-top:10px; font-size:13px;">回答风格（API value 为中文，见后端 academic_prompt）</div>
+        <select id="answerStyleSelect" class="btn secondary" style="border-radius:8px; padding:6px 10px;">
+          <option value="哲学论述" selected>哲学论述（深度论证，脚注体例）</option>
+          <option value="文献综述">文献综述（主题化比较，研究缺口）</option>
+          <option value="盲审审稿">盲审审稿（严格评审用户粘贴稿）</option>
+          <option value="引文补注">引文补注（为来稿仅加脚注，不改写正文）</option>
+          <option value="概念梳理">概念梳理（关键词驱动，引文为主）</option>
+        </select>
+        <div class="card-title" style="margin-top:10px; font-size:13px;">回答模型</div>
+        <select id="answerModelSelect" class="btn secondary" style="border-radius:8px; padding:6px 10px;">
+          <optgroup label="OpenAI（GPT）">
+            <option value="openai:gpt-5.1">gpt-5.1（失败 3 次自动降级到 gpt-5-mini）</option>
+            <option value="openai:gpt-5-mini">gpt-5-mini（不再降级）</option>
+          </optgroup>
+          <optgroup label="DeepSeek">
+            <option value="deepseek:deepseek-reasoner">deepseek-reasoner（最强推理）</option>
+          </optgroup>
+          <optgroup label="Gemini">
+            <option value="gemini:gemini-2.5-pro" selected>gemini-2.5-pro（质量优先）</option>
+            <option value="gemini:gemini-2.5-flash">gemini-2.5-flash（速度优先）</option>
+          </optgroup>
+        </select>
+        <p class="retrieval-hint" style="margin-top:6px;">
+          说明：<code>gemini-2.5-pro</code> 若失败 3 次会自动切到 <code>gemini-2.5-flash</code>；<code>gpt-5.1</code> 若失败 3 次会自动切到 <code>gpt-5-mini</code>。
+        </p>
+        <div class="option-row">
+          <label><input type="checkbox" id="autoKeywords" checked /> 自动从问题中抽取检索词（稀疏检索）</label>
+          <label><input type="checkbox" id="useHybrid" checked /> 启用混合检索（向量 + FTS5，RRF 融合）</label>
+          <label><input type="checkbox" id="useRerank" checked /> 启用 cross-encoder 重排序</label>
+          <label title="默认 12288；开启后 24576。超长更慢，且高峰期更易失败/触发限流。">
+            <input type="checkbox" id="ultraLongAnswer" /> 超长回答（24576）
+          </label>
+        </div>
+        <p class="retrieval-hint">
+          混合检索用稠密向量召回语义相关片段，用 FTS5 做术语字面匹配，再由 cross-encoder 对候选进行精排；专问术语在文本中的出现时建议填写关键词或开启自动抽取。
+        </p>
+        <div class="actions">
+          <span id="statusText" class="status-text" style="margin-right:auto;"></span>
+          <button id="askButton" class="btn">提问</button>
+        </div>
+      </div>
+
+      <div class="answer-card">
+        <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+          <span>回答</span>
+          <span id="answerModelBadge" class="status-text">模型：-</span>
+        </div>
+        <div id="answerContent" class="answer-content placeholder">
+          暂无回答，请先在上方输入问题并点击“提问”。
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sidebar-title">引用文献片段</div>
+      <div class="sidebar-subtitle" id="sidebarSubtitle">
+        回答生成后，这里会展示所有被引用/检索到的文献片段。
+      </div>
+      <div id="excerptList" class="excerpt-list"></div>
+      <div class="sidebar-title" style="margin-top:8px;">关键词全量命中（独立引用）</div>
+      <div class="sidebar-subtitle" id="keywordHitsSubtitle">
+        当你填写关键词时，这里展示所有命中关键词的 chunks（用于核对覆盖范围）。
+      </div>
+      <div id="keywordSourceStats" class="debug-pre" style="margin-bottom:8px;">source 统计：暂无</div>
+      <div id="keywordHitList" class="excerpt-list"></div>
+      <div class="excerpt-detail-card" id="excerptDetailCard" style="display:none;">
+        <div class="card-title" id="excerptDetailTitle">选中文段全文</div>
+        <div id="excerptDetailText" class="excerpt-detail-text"></div>
+      </div>
+    </div>
+
+    <div class="debugbar hidden" id="debugBar">
+      <div class="sidebar-title">检索调试面板</div>
+      <div class="sidebar-subtitle">
+        用于检查 dense / sparse / 融合 / rerank 是否按预期运行。
+      </div>
+      <div id="debugPanel" class="debug-pre">暂无调试信息。</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    本地运行 · Ingest 与问答均通过后端 API 完成
+  </div>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+
+    const ingestButton = document.getElementById("ingestButton");
+    const profileSelect = document.getElementById("profileSelect");
+    const ingestStatus = document.getElementById("ingestStatus");
+    const uploadDropzone = document.getElementById("uploadDropzone");
+    const uploadFileInput = document.getElementById("uploadFileInput");
+    const autoIngestAfterUpload = document.getElementById("autoIngestAfterUpload");
+    const ingestProgressWrap = document.getElementById("ingestProgressWrap");
+    const ingestProgress = document.getElementById("ingestProgress");
+    const ingestProgressLabel = document.getElementById("ingestProgressLabel");
+    const questionInput = document.getElementById("questionInput");
+    const askButton = document.getElementById("askButton");
+    const answerContent = document.getElementById("answerContent");
+    const answerModelBadge = document.getElementById("answerModelBadge");
+    const statusText = document.getElementById("statusText");
+    const excerptList = document.getElementById("excerptList");
+    const keywordHitList = document.getElementById("keywordHitList");
+    const keywordHitsSubtitle = document.getElementById("keywordHitsSubtitle");
+    const keywordSourceStats = document.getElementById("keywordSourceStats");
+    const sidebarSubtitle = document.getElementById("sidebarSubtitle");
+    const excerptDetailCard = document.getElementById("excerptDetailCard");
+    const excerptDetailTitle = document.getElementById("excerptDetailTitle");
+    const excerptDetailText = document.getElementById("excerptDetailText");
+    const debugBar = document.getElementById("debugBar");
+    const debugPanel = document.getElementById("debugPanel");
+    const keywordInput = document.getElementById("keywordInput");
+    const sourceFilterInput = document.getElementById("sourceFilterInput");
+    const autoKeywords = document.getElementById("autoKeywords");
+    const useHybrid = document.getElementById("useHybrid");
+    const useRerank = document.getElementById("useRerank");
+    const ultraLongAnswer = document.getElementById("ultraLongAnswer");
+    const answerStyleSelect = document.getElementById("answerStyleSelect");
+    const answerModelSelect = document.getElementById("answerModelSelect");
+    const statusAnchor = document.getElementById("statusText");
+
+    let currentDocs = [];
+    let currentKeywordHitDocs = [];
+
+    function renderDebug(data) {
+      if (!data) {
+        debugPanel.textContent = "暂无调试信息。";
+        return;
+      }
+      const lines = [];
+      lines.push(`term_source: ${data.term_source ?? "question"}`);
+      lines.push(`profile: ${data.profile ?? "quality"}`);
+      lines.push(`keywords_used: ${(data.keywords_used || []).join(", ") || "(none)"}`);
+      lines.push(`source_filters_used: ${(data.source_filters_used || []).join(", ") || "(none)"}`);
+      lines.push(`user_terms_used: ${(data.user_terms_used || []).join(", ") || "(none)"}`);
+      lines.push(`auto_terms_used: ${(data.auto_terms_used || []).join(", ") || "(none)"}`);
+      lines.push(`dropped_terms: ${(data.dropped_terms || []).join(", ") || "(none)"}`);
+      lines.push(`keyword_query: ${data.keyword_query || "(empty)"}`);
+      lines.push(`hybrid: ${data.hybrid ? "true" : "false"}`);
+      lines.push(`reranked: ${data.reranked ? "true" : "false"}`);
+      lines.push(`answer_style: ${data.answer_style || "哲学论述"}`);
+      lines.push(`answer_model: ${data.answer_model || "(unknown)"}`);
+      lines.push(`answer_max_output_tokens: ${data.answer_max_output_tokens ?? 0}`);
+      const dbg = data.debug || {};
+      lines.push(`dense_top_ids: ${(dbg.dense_top_ids || []).join(", ") || "(none)"}`);
+      lines.push(`sparse_top_ids: ${(dbg.sparse_top_ids || []).join(", ") || "(none)"}`);
+      lines.push(`fused_top_ids: ${(dbg.fused_top_ids || []).join(", ") || "(none)"}`);
+      lines.push(`retrieved_before_rerank: ${dbg.retrieved_before_rerank ?? 0}`);
+      lines.push(`final_docs: ${dbg.final_docs ?? 0}`);
+      lines.push(`keyword_hits_count: ${dbg.keyword_hits_count ?? 0}`);
+      lines.push(`keyword_source_stats_top10: ${JSON.stringify(dbg.keyword_source_stats_top10 || [])}`);
+      lines.push(`coverage: ${JSON.stringify(dbg.coverage || {})}`);
+      lines.push(`final_k_effective: ${dbg.final_k ?? 0}`);
+      lines.push(`final_k_cap: ${dbg.final_k_cap ?? 0}`);
+      lines.push(`chroma_collection: ${dbg.chroma_collection || "(unknown)"}`);
+      lines.push(`chroma_path: ${dbg.chroma_path || "(unknown)"}`);
+      lines.push(`sparse_db_path: ${dbg.sparse_db_path || "(unknown)"}`);
+      debugPanel.textContent = lines.join("\n");
+    }
+
+    function parseKeywordTerms(raw) {
+      if (!raw || !raw.trim()) return [];
+      return raw
+        .split(/[\n,，;；]+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+    }
+
+    function setAskLoading(isLoading) {
+      askButton.disabled = isLoading;
+      if (!isLoading) {
+        statusText.textContent = "";
+        return;
+      }
+      const v = (answerModelSelect?.value || "gemini:gemini-2.5-pro");
+      if (v.startsWith("gemini:gemini-2.5-flash")) {
+        statusText.textContent = "正在生成回答（Gemini: 2.5-flash）…";
+      } else if (v.startsWith("gemini:")) {
+        statusText.textContent = "正在生成回答（Gemini: 2.5-pro，高峰期失败 3 次后会切到 2.5-flash）…";
+      } else if (v.startsWith("openai:")) {
+        statusText.textContent = "正在生成回答（OpenAI）…";
+      } else if (v.startsWith("deepseek:")) {
+        statusText.textContent = "正在生成回答（DeepSeek）…";
+      } else {
+        statusText.textContent = "正在生成回答…";
+      }
+    }
+
+    function setIngestLoading(isLoading) {
+      ingestButton.disabled = isLoading;
+      profileSelect.disabled = isLoading;
+      if (uploadDropzone) {
+        uploadDropzone.classList.toggle("disabled", isLoading);
+        uploadDropzone.setAttribute("aria-disabled", isLoading ? "true" : "false");
+      }
+      if (uploadFileInput) uploadFileInput.disabled = isLoading;
+    }
+
+    function setDropzoneBusy(isBusy) {
+      if (!uploadDropzone) return;
+      uploadDropzone.classList.toggle("disabled", isBusy);
+      uploadDropzone.setAttribute("aria-disabled", isBusy ? "true" : "false");
+      if (uploadFileInput) uploadFileInput.disabled = isBusy;
+    }
+
+    async function uploadFiles(fileList) {
+      const allowed = /\.(pdf|docx|json)$/i;
+      const picked = Array.from(fileList).filter((f) => allowed.test(f.name));
+      if (picked.length === 0) {
+        ingestStatus.textContent = "请选择 .pdf / .docx / .json 文件。";
+        return;
+      }
+      const fd = new FormData();
+      picked.forEach((f) => fd.append("files", f));
+      setDropzoneBusy(true);
+      ingestStatus.textContent = `正在上传 ${picked.length} 个文件…`;
+      try {
+        const resp = await fetch(`${API_BASE}/api/upload`, { method: "POST", body: fd });
+        if (!resp.ok) {
+          const errText = await resp.text();
+          throw new Error(errText || `HTTP ${resp.status}`);
+        }
+        const data = await resp.json();
+        const names = (data.saved || []).join("、");
+        ingestStatus.textContent = `已保存 ${data.count || 0} 个文件到 data/uploads：${names || "（无）"}`;
+        if (autoIngestAfterUpload.checked) {
+          await runIngestStream();
+        }
+      } catch (err) {
+        console.error(err);
+        ingestStatus.textContent = `上传失败：${err.message || err}`;
+      } finally {
+        setDropzoneBusy(false);
+      }
+    }
+
+    async function runIngestStream() {
+      setIngestLoading(true);
+      ingestProgressWrap.classList.add("visible");
+      ingestProgress.value = 0;
+      ingestProgressLabel.textContent = "连接后端…";
+      ingestStatus.textContent = "正在运行 ingest（流式进度）…";
+      try {
+        const resp = await fetch(`${API_BASE}/api/ingest/stream`, { method: "POST" });
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split("\n");
+          buf = lines.pop() || "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            let ev;
+            try {
+              ev = JSON.parse(line);
+            } catch (e) {
+              continue;
+            }
+            if (ev.type === "progress") {
+              const pct = typeof ev.percent === "number" ? ev.percent : 0;
+              ingestProgress.value = Math.min(100, Math.max(0, pct));
+              ingestProgressLabel.textContent =
+                ev.message || ev.stage || "";
+            }
+            if (ev.type === "done") {
+              ingestProgress.value = 100;
+              ingestProgressLabel.textContent = ev.message || "完成";
+              ingestStatus.textContent = `Ingest 完成：共加载 ${ev.total_pages} 页，切分为 ${ev.total_chunks} 个语义片段。`;
+            }
+            if (ev.type === "error") {
+              throw new Error(ev.message || "ingest 失败");
+            }
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        ingestStatus.textContent = `Ingest 失败：${err.message || err}。请检查后端与 data 目录。`;
+        ingestProgressLabel.textContent = "";
+      } finally {
+        ingestButton.disabled = false;
+        profileSelect.disabled = false;
+        ingestProgressWrap.classList.remove("visible");
+        if (uploadDropzone) {
+          uploadDropzone.classList.remove("disabled");
+          uploadDropzone.setAttribute("aria-disabled", "false");
+        }
+        if (uploadFileInput) uploadFileInput.disabled = false;
+      }
+    }
+
+    async function loadProfile() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/profile`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (Array.isArray(data.available_profiles) && data.available_profiles.length > 0) {
+          profileSelect.innerHTML = "";
+          data.available_profiles.forEach((p) => {
+            const opt = document.createElement("option");
+            opt.value = p;
+            opt.textContent = p;
+            profileSelect.appendChild(opt);
+          });
+        }
+        profileSelect.value = data.profile || "quality";
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function switchProfile() {
+      const profile = profileSelect.value;
+      if (!profile) return;
+      profileSelect.disabled = true;
+      try {
+        const resp = await fetch(`${API_BASE}/api/profile`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ profile }),
+        });
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        const data = await resp.json();
+        profileSelect.value = data.profile || profile;
+        ingestStatus.textContent = `已切换到 ${data.profile}。请重新运行 Ingest 以重建向量与稀疏索引。`;
+      } catch (err) {
+        console.error(err);
+        ingestStatus.textContent = "切换配置失败，请检查后端日志。";
+      } finally {
+        profileSelect.disabled = false;
+      }
+    }
+
+    function renderAnswer(answer) {
+      if (!answer) {
+        answerContent.classList.add("placeholder");
+        answerContent.textContent = "暂无回答。";
+        return;
+      }
+      answerContent.classList.remove("placeholder");
+      answerContent.textContent = answer;
+    }
+
+    function renderDocs(docs) {
+      currentDocs = docs || [];
+      renderDocList(excerptList, currentDocs, "main");
+      if (!currentDocs.length) {
+        sidebarSubtitle.textContent = "未检索到任何文献片段。可以尝试换一个更宽泛或更具体的问题。";
+        excerptDetailCard.style.display = "none";
+        return;
+      }
+      sidebarSubtitle.textContent = `共检索到 ${currentDocs.length} 个文献片段。点击某一条查看全文。`;
+    }
+
+    function renderKeywordHitDocs(docs, sourceStats = []) {
+      currentKeywordHitDocs = docs || [];
+      renderDocList(keywordHitList, currentKeywordHitDocs, "keyword");
+      if (!sourceStats || sourceStats.length === 0) {
+        keywordSourceStats.textContent = "source 统计：暂无";
+      } else {
+        const top = sourceStats.slice(0, 12).map((x) => `${x.source}: ${x.count}`).join("\n");
+        keywordSourceStats.textContent = `source 统计（Top 12）:\n${top}`;
+      }
+      if (!currentKeywordHitDocs.length) {
+        keywordHitsSubtitle.textContent = "当前无关键词全量命中结果（可能未输入关键词或未命中）。";
+        return;
+      }
+      keywordHitsSubtitle.textContent = `共命中 ${currentKeywordHitDocs.length} 个关键词相关 chunks。`;
+    }
+
+    function renderDocList(container, docs, kind) {
+      container.innerHTML = "";
+      docs.forEach((doc, idx) => {
+        const item = document.createElement("div");
+        item.className = "excerpt-item";
+        item.dataset.index = idx;
+        item.dataset.kind = kind;
+
+        const meta = document.createElement("div");
+        meta.className = "excerpt-meta";
+        meta.textContent = `${doc.source ?? "Unknown"} (p. ${doc.page ?? "?"})`;
+
+        const text = document.createElement("div");
+        text.className = "excerpt-text";
+        text.textContent = doc.text ?? "";
+
+        item.appendChild(meta);
+        item.appendChild(text);
+
+        item.addEventListener("click", () => selectExcerpt(idx, kind));
+
+        container.appendChild(item);
+      });
+    }
+
+    function selectExcerpt(index, kind = "main") {
+      const targetDocs = kind === "keyword" ? currentKeywordHitDocs : currentDocs;
+      if (!targetDocs || index < 0 || index >= targetDocs.length) return;
+
+      document.querySelectorAll(".excerpt-item").forEach((el, idx) => {
+        const sameKind = el.dataset.kind === kind;
+        const sameIndex = Number(el.dataset.index) === index;
+        if (sameKind && sameIndex) el.classList.add("active");
+        else el.classList.remove("active");
+      });
+
+      const doc = targetDocs[index];
+      excerptDetailCard.style.display = "block";
+      excerptDetailTitle.textContent = `${doc.source ?? "Unknown"} (p. ${doc.page ?? "?"})`;
+      excerptDetailText.textContent = doc.text ?? "";
+      excerptDetailCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    async function runIngest() {
+      await runIngestStream();
+    }
+
+    async function askQuestion() {
+      const question = questionInput.value.trim();
+      if (!question) {
+        alert("请先输入一个问题。");
+        return;
+      }
+
+      setAskLoading(true);
+      renderAnswer("");
+      if (answerModelBadge) answerModelBadge.textContent = "模型：生成中...";
+      renderDocs([]);
+      renderKeywordHitDocs([], []);
+      renderDebug(null);
+
+      try {
+        const keyword_terms = parseKeywordTerms(keywordInput.value);
+        const source_filters = parseKeywordTerms(sourceFilterInput.value);
+        const rawModel = answerModelSelect.value || "gemini:gemini-2.5-pro";
+        const parts = rawModel.split(":");
+        const llm_provider = parts[0] || "gemini";
+        const llm_model = parts.slice(1).join(":") || (llm_provider === "gemini" ? "gemini-2.5-pro" : "");
+        const resp = await fetch(`${API_BASE}/api/answer`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            question,
+            keyword_terms: keyword_terms.length ? keyword_terms : null,
+            source_filters: source_filters.length ? source_filters : null,
+            auto_extract_keywords: autoKeywords.checked,
+            use_hybrid: useHybrid.checked,
+            use_rerank: useRerank.checked,
+            ultra_long_answer: !!(ultraLongAnswer && ultraLongAnswer.checked),
+            answer_style: answerStyleSelect.value || "哲学论述",
+            llm_provider,
+            llm_model,
+          }),
+        });
+
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+
+        const data = await resp.json();
+        renderAnswer(data.answer);
+        if (answerModelBadge) {
+          answerModelBadge.textContent = `模型：${data.answer_model || "unknown"}`;
+        }
+        renderDocs(data.docs);
+        renderKeywordHitDocs(data.keyword_hit_docs || [], data.keyword_source_stats || []);
+        renderDebug(data);
+        const kw = data.keywords_used && data.keywords_used.length
+          ? data.keywords_used.join("、")
+          : (data.keyword_query || "").slice(0, 80);
+        const hybridOn = data.hybrid ? "混合检索已生效" : "仅稠密检索（未启用混合或未构建 FTS5 索引）";
+        const rerankOn = data.reranked ? "已启用重排序" : "未启用重排序";
+        sidebarSubtitle.textContent =
+          `共检索到 ${(data.docs || []).length} 个文献片段。${hybridOn}，${rerankOn}。稀疏查询：${kw || "（整句问题）"}`;
+        statusText.textContent = `本次回答模型：${data.answer_model || "unknown"}`;
+      } catch (err) {
+        console.error(err);
+        renderAnswer("");
+        if (answerModelBadge) answerModelBadge.textContent = "模型：失败";
+        renderKeywordHitDocs([], []);
+        renderDebug(null);
+        answerContent.classList.add("placeholder");
+        answerContent.textContent = "请求失败，请检查后端是否已启动（uvicorn），或查看浏览器控制台。";
+      } finally {
+        setAskLoading(false);
+      }
+    }
+
+    ingestButton.addEventListener("click", runIngest);
+
+    if (uploadDropzone && uploadFileInput) {
+      uploadDropzone.addEventListener("click", () => {
+        if (uploadDropzone.classList.contains("disabled")) return;
+        uploadFileInput.click();
+      });
+      uploadDropzone.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          if (!uploadDropzone.classList.contains("disabled")) uploadFileInput.click();
+        }
+      });
+      uploadFileInput.addEventListener("change", () => {
+        if (uploadFileInput.files && uploadFileInput.files.length) {
+          uploadFiles(uploadFileInput.files);
+          uploadFileInput.value = "";
+        }
+      });
+      ["dragenter", "dragover", "dragleave", "drop"].forEach((evName) => {
+        uploadDropzone.addEventListener(evName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+      });
+      uploadDropzone.addEventListener("dragover", () => {
+        if (!uploadDropzone.classList.contains("disabled")) uploadDropzone.classList.add("dragover");
+      });
+      uploadDropzone.addEventListener("dragleave", () => {
+        uploadDropzone.classList.remove("dragover");
+      });
+      uploadDropzone.addEventListener("drop", (e) => {
+        uploadDropzone.classList.remove("dragover");
+        if (uploadDropzone.classList.contains("disabled")) return;
+        const files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files.length) uploadFiles(files);
+      });
+    }
+    profileSelect.addEventListener("change", switchProfile);
+    askButton.addEventListener("click", askQuestion);
+    loadProfile();
+    statusAnchor.insertAdjacentHTML(
+      "beforebegin",
+      '<button id="toggleDebugButton" class="btn secondary" style="margin-right:8px;">显示调试面板</button>'
+    );
+    const toggleDebugButton = document.getElementById("toggleDebugButton");
+    toggleDebugButton.addEventListener("click", () => {
+      const hidden = debugBar.classList.toggle("hidden");
+      toggleDebugButton.textContent = hidden ? "显示调试面板" : "隐藏调试面板";
+    });
+    questionInput.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        askQuestion();
+      }
+    });
+  </script>
+</body>
+</html>
+
